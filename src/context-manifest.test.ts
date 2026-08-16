@@ -7,6 +7,7 @@ const extensionRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const manifest = JSON.parse(
   fs.readFileSync(path.join(extensionRoot, "openclaw.plugin.json"), "utf8"),
 ) as Record<string, unknown>;
+const readme = fs.readFileSync(path.join(extensionRoot, "README.md"), "utf8");
 const packageManifest = JSON.parse(
   fs.readFileSync(path.join(extensionRoot, "package.json"), "utf8"),
 ) as {
@@ -18,17 +19,12 @@ const packageManifest = JSON.parse(
 };
 
 describe("Context.dev plugin manifest", () => {
-  it("contributes the official OAuth-backed MCP server", () => {
-    expect(manifest.mcpServers).toEqual({
-      context: {
-        transport: "streamable-http",
-        url: "https://mcp.context.dev/mcp",
-        auth: "oauth",
-        supportsParallelToolCalls: true,
-        connectionTimeoutMs: 30_000,
-        requestTimeoutMs: 180_000,
-      },
-    });
+  it("uses supported manifest metadata and documents the OAuth MCP connection", () => {
+    expect(manifest.name).toBe("Context.dev");
+    expect(manifest).not.toHaveProperty("mcpServers");
+    expect(readme).toContain("openclaw mcp add context");
+    expect(readme).toContain("https://mcp.context.dev/mcp");
+    expect(readme).toContain("openclaw mcp login context");
   });
 
   it("publishes compiled output compatible with the released plugin API", () => {

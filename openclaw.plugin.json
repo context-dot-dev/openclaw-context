@@ -1,5 +1,6 @@
 {
   "id": "context",
+  "name": "Context.dev",
   "activation": {
     "onStartup": false
   },
@@ -23,16 +24,6 @@
       "help": "Context.dev API key for web scraping (falls back to the search key or CONTEXT_API_KEY).",
       "sensitive": true,
       "placeholder": "brand_..."
-    }
-  },
-  "mcpServers": {
-    "context": {
-      "transport": "streamable-http",
-      "url": "https://mcp.context.dev/mcp",
-      "auth": "oauth",
-      "supportsParallelToolCalls": true,
-      "connectionTimeoutMs": 30000,
-      "requestTimeoutMs": 180000
     }
   },
   "contracts": {
