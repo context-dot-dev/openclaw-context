@@ -1,5 +1,5 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
-import { readProviderJsonObjectResponse } from "openclaw/plugin-sdk/provider-http";
+import { readResponseTextLimited } from "openclaw/plugin-sdk/provider-http";
 import {
   DEFAULT_CACHE_TTL_MINUTES,
   markdownToText,
@@ -12,7 +12,6 @@ import {
 } from "openclaw/plugin-sdk/provider-web-fetch";
 import { postTrustedWebToolsJson, resolveSiteName } from "openclaw/plugin-sdk/provider-web-search";
 import {
-  truncateSanitizedExternalContent,
   wrapExternalContent,
   wrapWebContent,
 } from "openclaw/plugin-sdk/security-runtime";
@@ -45,6 +44,21 @@ const SEARCH_CACHE = new Map<
   string,
   { value: Record<string, unknown>; expiresAt: number; insertedAt: number }
 >();
+
+function truncateExternalContent(value: string, maxChars: number): {
+  text: string;
+  truncated: boolean;
+} {
+  if (value.length <= maxChars) {
+    return { text: value, truncated: false };
+  }
+  let end = maxChars;
+  const lastCodeUnit = value.charCodeAt(end - 1);
+  if (lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff) {
+    end -= 1;
+  }
+  return { text: value.slice(0, end), truncated: true };
+}
 const SCRAPE_CACHE = new Map<
   string,
   { value: Record<string, unknown>; expiresAt: number; insertedAt: number }
@@ -170,7 +184,17 @@ async function readContextJsonResponse(
   label: string,
   maxBytes: number,
 ): Promise<Record<string, unknown>> {
-  return await readProviderJsonObjectResponse(response, label, { maxBytes });
+  const responseText = await readResponseTextLimited(response, maxBytes);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(responseText);
+  } catch {
+    throw new Error(label);
+  }
+  if (!isRecord(parsed)) {
+    throw new Error(label);
+  }
+  return parsed;
 }
 
 async function getContextJson(params: {
@@ -197,7 +221,7 @@ async function getContextJson(params: {
     async ({ response }) => {
       if (!response.ok) {
         const detail = await readResponseText(response, { maxBytes: 64_000 });
-        const safeDetail = truncateSanitizedExternalContent(
+        const safeDetail = truncateExternalContent(
           detail.text || response.statusText,
           CONTEXT_SCRAPE_METADATA_MAX_CHARS,
         ).text;
@@ -221,7 +245,7 @@ function normalizeSearchMetadataToken(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
   }
-  const bounded = truncateSanitizedExternalContent(value, CONTEXT_SEARCH_METADATA_MAX_CHARS).text;
+  const bounded = truncateExternalContent(value, CONTEXT_SEARCH_METADATA_MAX_CHARS).text;
   return SEARCH_METADATA_TOKEN_RE.test(bounded) ? bounded : undefined;
 }
 
@@ -243,7 +267,7 @@ function buildContextSearchPayload(params: {
       truncated ||= value.length > 0;
       return "";
     }
-    const bounded = truncateSanitizedExternalContent(value, remainingContentChars);
+    const bounded = truncateExternalContent(value, remainingContentChars);
     truncated ||= bounded.truncated;
     remainingContentChars -= bounded.text.length;
     return wrapWebContent(bounded.text, "web_search");
@@ -418,11 +442,11 @@ function parseContextScrapePayload(params: {
     params.extractMode === "text"
       ? markdownToText(params.payload.markdown)
       : params.payload.markdown;
-  const boundedText = truncateSanitizedExternalContent(rawText, params.maxChars);
+  const boundedText = truncateExternalContent(rawText, params.maxChars);
   let truncated = boundedText.truncated;
   let remainingMetadataChars = CONTEXT_SCRAPE_METADATA_MAX_CHARS;
   const wrapBoundedMetadata = (value: string): string => {
-    const bounded = truncateSanitizedExternalContent(value, remainingMetadataChars);
+    const bounded = truncateExternalContent(value, remainingMetadataChars);
     truncated ||= bounded.truncated;
     remainingMetadataChars -= bounded.text.length;
     return wrapExternalContent(bounded.text, { source: "web_fetch", includeWarning: false });
