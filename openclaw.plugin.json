@@ -1,0 +1,67 @@
+{
+  "id": "context",
+  "activation": {
+    "onStartup": false
+  },
+  "setup": {
+    "providers": [
+      {
+        "id": "context",
+        "envVars": ["CONTEXT_API_KEY"]
+      }
+    ]
+  },
+  "uiHints": {
+    "webSearch.apiKey": {
+      "label": "Context.dev API Key",
+      "help": "Context.dev API key for web search (fallback: CONTEXT_API_KEY env var).",
+      "sensitive": true,
+      "placeholder": "brand_..."
+    },
+    "webFetch.apiKey": {
+      "label": "Context.dev API Key",
+      "help": "Context.dev API key for web scraping (falls back to the search key or CONTEXT_API_KEY).",
+      "sensitive": true,
+      "placeholder": "brand_..."
+    }
+  },
+  "mcpServers": {
+    "context": {
+      "transport": "streamable-http",
+      "url": "https://mcp.context.dev/mcp",
+      "auth": "oauth",
+      "supportsParallelToolCalls": true,
+      "connectionTimeoutMs": 30000,
+      "requestTimeoutMs": 180000
+    }
+  },
+  "contracts": {
+    "webSearchProviders": ["context"],
+    "webFetchProviders": ["context"],
+    "tools": ["context_search", "context_scrape"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "webSearch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "apiKey": {
+            "type": ["string", "object"]
+          }
+        }
+      },
+      "webFetch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "apiKey": {
+            "type": ["string", "object"]
+          }
+        }
+      }
+    }
+  }
+}
